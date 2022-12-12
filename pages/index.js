@@ -1,8 +1,55 @@
-import Head from 'next/head'
-import Image from 'next/image'
-import styles from '../styles/Home.module.css'
+import axios from "axios";
+import Head from "next/head";
+import toast, { Toaster } from "react-hot-toast";
+import { useState } from "react";
+import styles from "../styles/Home.module.css";
 
 export default function Home() {
+  const [script, setScript] = useState("");
+  const [inputData, setInputData] = useState();
+  const [loading, setLoading] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+
+  const config = {
+    headers: { "content-type": "multipart/form-data" },
+  };
+
+  const onFileChange = (e) => {
+    const formData = new FormData();
+    formData.append("file", e.target.files[0]);
+    setInputData(formData);
+  };
+
+  const makeTranscript = async (e) => {
+    e.preventDefault();
+    if (!inputData) {
+      toast("Please upload an mp3 file first", {
+        duraton: 5000,
+        position: "top-center",
+      });
+    } else {
+      setLoading(true);
+      setScript("");
+      const loadingToast = toast.loading(
+        "Your script will be generated soon..."
+      );
+      const { data } = await axios.post("/api/transcribe", inputData, config);
+      setScript(data.out);
+      setLoading(false);
+      toast.dismiss(loadingToast);
+    }
+  };
+
+  const copyText = async () => {
+    if ("clipboard" in navigator) {
+      setIsCopied(true);
+      return await navigator.clipboard.writeText(script);
+    } else {
+      setIsCopied(true);
+      return document.execCommand("copy", true, script);
+    }
+  };
+
   return (
     <div className={styles.container}>
       <Head>
@@ -12,60 +59,27 @@ export default function Home() {
       </Head>
 
       <main className={styles.main}>
-        <h1 className={styles.title}>
-          Welcome to <a href="https://nextjs.org">Next.js!</a>
-        </h1>
-
-        <p className={styles.description}>
-          Get started by editing{' '}
-          <code className={styles.code}>pages/index.js</code>
-        </p>
-
-        <div className={styles.grid}>
-          <a href="https://nextjs.org/docs" className={styles.card}>
-            <h2>Documentation &rarr;</h2>
-            <p>Find in-depth information about Next.js features and API.</p>
-          </a>
-
-          <a href="https://nextjs.org/learn" className={styles.card}>
-            <h2>Learn &rarr;</h2>
-            <p>Learn about Next.js in an interactive course with quizzes!</p>
-          </a>
-
-          <a
-            href="https://github.com/vercel/next.js/tree/canary/examples"
-            className={styles.card}
-          >
-            <h2>Examples &rarr;</h2>
-            <p>Discover and deploy boilerplate example Next.js projects.</p>
-          </a>
-
-          <a
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.card}
-          >
-            <h2>Deploy &rarr;</h2>
-            <p>
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
-        </div>
+        <Toaster />
+        <h1 className={styles.title}>Audio 2 Script</h1>
+        <form className={styles.form} encType="multipart/form-data">
+          <input
+            disabled={loading}
+            type="file"
+            name="file"
+            multiple={false}
+            onChange={onFileChange}
+            accept=".mp3"
+          />
+          <button disabled={loading} onClick={makeTranscript}>
+            Transcribe
+          </button>
+        </form>
+        <h2>Script:</h2>
+        <p className={styles.response}>{script}</p>
+        <button onClick={copyText}>
+          <span>{isCopied ? "Copied!" : "Copy"}</span>
+        </button>
       </main>
-
-      <footer className={styles.footer}>
-        <a
-          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Powered by{' '}
-          <span className={styles.logo}>
-            <Image src="/vercel.svg" alt="Vercel Logo" width={72} height={16} />
-          </span>
-        </a>
-      </footer>
     </div>
-  )
+  );
 }
